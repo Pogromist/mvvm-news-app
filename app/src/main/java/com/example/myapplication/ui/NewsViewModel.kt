@@ -1,31 +1,26 @@
 package com.example.myapplication.ui
 
-import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.myapplication.models.NewsResponse
-import com.example.myapplication.repository.NewsRepository
-import com.example.myapplication.util.NetworkState
-import kotlinx.coroutines.launch
-import retrofit2.Response
+import com.example.myapplication.data.models.NewsResponse
+import com.example.myapplication.data.repository.NetworkState
+import com.example.myapplication.data.repository.NewsRepository
+import io.reactivex.disposables.CompositeDisposable
 
-class NewsViewModel(val newsRepository: NewsRepository) : ViewModel() {
+class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
 
-    val searchNews: MutableLiveData<NetworkState<NewsResponse>> = MutableLiveData()
-    var searchNewsPage = 1
+    private val compositeDisposable = CompositeDisposable()
 
-    fun searchNews(searchQuery: String) = viewModelScope.launch {
-        searchNews.postValue(NetworkState.Loading())
-        val response = newsRepository.searchNews(searchQuery, searchNewsPage)
-        searchNews.postValue(handleSearchNewsResponse(response))
+    val newsDetails : LiveData<NewsResponse> by lazy {
+        newsRepository.fetchNews(compositeDisposable)
     }
 
-    private fun handleSearchNewsResponse(response: Response<NewsResponse>) : NetworkState<NewsResponse> {
-        if (response.isSuccessful) {
-            response.body()?.let { resultResponse ->
-                return NetworkState.Success(resultResponse)
-            }
-        }
-        return NetworkState.Error(response.message())
+    val networkState : LiveData<NetworkState> by lazy {
+        newsRepository.getNetworkState()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        compositeDisposable.dispose()
     }
 }

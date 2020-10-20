@@ -2,31 +2,37 @@ package com.example.myapplication.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.example.myapplication.R
 import com.example.myapplication.adapters.NewsAdapter
-import com.example.myapplication.db.ArticleDatabase
-import com.example.myapplication.repository.NewsRepository
-import com.example.myapplication.util.NetworkState
+import com.example.myapplication.data.api.NewsAPI
+import com.example.myapplication.data.api.RetrofitInstance
+import com.example.myapplication.data.models.NewsResponse
+import com.example.myapplication.data.repository.NewsRepository
 import kotlinx.android.synthetic.main.activity_news.*
+import kotlinx.android.synthetic.main.recyclerview_item.*
 
 class NewsActivity : AppCompatActivity() {
 
-    val TAG = "NewsActivity"
     lateinit var viewModel: NewsViewModel
+    lateinit var newsRepository: NewsRepository
     lateinit var newsAdapter: NewsAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_news)
 
-        val newsRepository = NewsRepository(ArticleDatabase(this))
+        val apiService: NewsAPI = RetrofitInstance.api
+        newsRepository = NewsRepository(apiService)
+
         val viewModelProviderFactory = NewsViewModelProviderFactory(newsRepository)
         viewModel = ViewModelProvider(this, viewModelProviderFactory).get(NewsViewModel::class.java)
+
+        viewModel.newsDetails.observe(this, Observer {
+            newsAdapter.differ.submitList(it.articles)
+        })
 
         setupRecyclerView()
 
@@ -34,39 +40,6 @@ class NewsActivity : AppCompatActivity() {
             val intent = Intent(this, DetailNewsActivity::class.java)
             this.startActivity(intent)
         }
-
-        observeLiveData()
-        viewModel.searchNews("software") // onStart LiveData
-    }
-
-    private fun observeLiveData() {
-        viewModel.searchNews.observe(this, Observer { it ->
-            when(it) {
-                is NetworkState.Success -> {
-                    hideProgressBar()
-                    it.data?.let {
-                        newsAdapter.differ.submitList(it.articles)
-                    }
-                }
-                is NetworkState.Error -> {
-                    hideProgressBar()
-                    it.message?.let {
-                        Log.e(TAG, "An error occurred" )
-                    }
-                }
-                is NetworkState.Loading -> {
-                    showProgressBar()
-                }
-            }
-        })
-    }
-
-    private fun hideProgressBar() {
-        paginationProgressBar.visibility = View.INVISIBLE
-    }
-
-    private fun showProgressBar() {
-        paginationProgressBar.visibility = View.VISIBLE
     }
 
     private fun setupRecyclerView() {
@@ -75,4 +48,6 @@ class NewsActivity : AppCompatActivity() {
             adapter = newsAdapter
         }
     }
+
+
 }
