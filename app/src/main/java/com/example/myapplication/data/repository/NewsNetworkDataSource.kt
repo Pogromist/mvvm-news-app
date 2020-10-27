@@ -1,17 +1,21 @@
 package com.example.myapplication.data.repository
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.myapplication.data.api.NewsAPI
 import com.example.myapplication.data.models.NewsResponse
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.disposables.Disposable
+import io.reactivex.internal.util.NotificationLite.disposable
 import io.reactivex.schedulers.Schedulers
+import java.text.SimpleDateFormat
+import java.util.*
 
 class NewsNetworkDataSource(
     private val apiService: NewsAPI,
-    private val compositeDisposable: CompositeDisposable
+    private val disposable: Disposable
 ) {
 
     private val _networkState = MutableLiveData<NetworkState>()
@@ -22,11 +26,15 @@ class NewsNetworkDataSource(
     val newsResponse: LiveData<NewsResponse>
         get() = _newsResponse
 
+    @SuppressLint("SimpleDateFormat")
     fun searchNews() {
         _networkState.value = NetworkState.LOADING
 
-        compositeDisposable.add(
-            apiService.searchForNews("software", 1)
+        val sdf = SimpleDateFormat("yyyy-MM-dd")
+        val currentDate = sdf.format(Date())
+
+        disposable(
+            apiService.searchForNews("software", 1, currentDate)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
